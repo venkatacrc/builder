@@ -1,0 +1,276 @@
+{
+  "name": "builder",
+  "displayName": "Builder (Code Puppy)",
+  "description": "A Cursor-style AI builder for VS Code, powered by Walmart's Code Puppy agent over the Agent Client Protocol (ACP).",
+  "version": "0.1.0",
+  "publisher": "walmart-builder",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Builder shows the chat in Restricted Mode but starts the agent, which edits files and runs commands, only after you trust the folder.",
+      "restrictedConfigurations": [
+        "builder.codePuppyPath",
+        "builder.configDir",
+        "builder.useLauncher",
+        "builder.agent",
+        "builder.autoApprove",
+        "builder.delegateTerminal"
+      ]
+    }
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "secondarySidebar": [
+        {
+          "id": "builder",
+          "title": "Builder",
+          "icon": "media/builder.svg"
+        }
+      ],
+      "activitybar": [
+        {
+          "id": "builder-tools",
+          "title": "Builder",
+          "icon": "media/builder.svg"
+        }
+      ]
+    },
+    "views": {
+      "builder": [
+        {
+          "type": "webview",
+          "id": "builder.chat",
+          "name": "Chat",
+          "icon": "media/builder.svg"
+        }
+      ],
+      "builder-tools": [
+        {
+          "id": "builder.changes",
+          "name": "Pending Changes"
+        },
+        {
+          "id": "builder.sessions",
+          "name": "History"
+        },
+        {
+          "id": "builder.mcp",
+          "name": "MCP Servers"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "builder.changes",
+        "contents": "No pending agent edits.\nEdits made by the agent show up here so you can review, keep, or undo them."
+      }
+    ],
+    "commands": [
+      { "command": "builder.newChat", "title": "New Chat", "category": "Builder", "icon": "$(add)" },
+      { "command": "builder.openChatInEditor", "title": "Open Chat in Editor Tab", "category": "Builder", "icon": "$(link-external)" },
+      { "command": "builder.focusChat", "title": "Focus Chat", "category": "Builder" },
+      { "command": "builder.addSelectionToChat", "title": "Add Selection to Chat", "category": "Builder" },
+      { "command": "builder.addFileToChat", "title": "Add File to Chat", "category": "Builder" },
+      { "command": "builder.inlineEdit", "title": "Inline Edit (Cmd+K)", "category": "Builder" },
+      { "command": "builder.toggleTabCompletion", "title": "Toggle Tab Autocomplete", "category": "Builder" },
+      { "command": "builder.selectModel", "title": "Select Model for Active Chat", "category": "Builder" },
+      { "command": "builder.reviewChanges", "title": "Review Pending Changes", "category": "Builder" },
+      { "command": "builder.keepAllChanges", "title": "Keep All Changes", "category": "Builder", "icon": "$(check-all)" },
+      { "command": "builder.undoAllChanges", "title": "Undo All Changes", "category": "Builder", "icon": "$(discard)" },
+      { "command": "builder.keepChange", "title": "Keep", "category": "Builder", "icon": "$(check)" },
+      { "command": "builder.undoChange", "title": "Undo", "category": "Builder", "icon": "$(discard)" },
+      { "command": "builder.diffChange", "title": "Show Diff", "category": "Builder", "icon": "$(diff)" },
+      { "command": "builder.refreshSessions", "title": "Refresh Sessions", "category": "Builder", "icon": "$(refresh)" },
+      { "command": "builder.openSession", "title": "Open Session", "category": "Builder" },
+      { "command": "builder.showHistory", "title": "Chat History", "category": "Builder", "icon": "$(history)" },
+      { "command": "builder.openSessionInTerminal", "title": "Resume Session in code-puppy CLI", "category": "Builder", "icon": "$(terminal)" },
+      { "command": "builder.deleteSession", "title": "Delete Session", "category": "Builder", "icon": "$(trash)" },
+      { "command": "builder.refreshMcp", "title": "Refresh MCP Servers", "category": "Builder", "icon": "$(refresh)" },
+      { "command": "builder.mcpToggle", "title": "Enable / Disable MCP Server", "category": "Builder" },
+      { "command": "builder.mcpAdd", "title": "Add MCP Server", "category": "Builder", "icon": "$(add)" },
+      { "command": "builder.mcpRemove", "title": "Remove MCP Server", "category": "Builder", "icon": "$(trash)" },
+      { "command": "builder.mcpBrowseMarketplace", "title": "Browse Walmart MCP Marketplace", "category": "Builder", "icon": "$(search)" },
+      { "command": "builder.mcpOpenConfig", "title": "Open MCP Config (mcp_servers.json)", "category": "Builder", "icon": "$(go-to-file)" },
+      { "command": "builder.restartAgents", "title": "Restart Agent Processes", "category": "Builder" },
+      { "command": "builder.showLog", "title": "Show Agent Log", "category": "Builder" },
+      { "command": "builder.doctor", "title": "Diagnose Setup", "category": "Builder" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "builder.openChatInEditor", "when": "view == builder.chat", "group": "overflow@1" },
+        { "command": "builder.keepAllChanges", "when": "view == builder.changes", "group": "navigation@1" },
+        { "command": "builder.undoAllChanges", "when": "view == builder.changes", "group": "navigation@2" },
+        { "command": "builder.refreshSessions", "when": "view == builder.sessions", "group": "navigation" },
+        { "command": "builder.mcpAdd", "when": "view == builder.mcp", "group": "navigation@1" },
+        { "command": "builder.mcpBrowseMarketplace", "when": "view == builder.mcp", "group": "navigation@2" },
+        { "command": "builder.mcpOpenConfig", "when": "view == builder.mcp", "group": "navigation@3" },
+        { "command": "builder.refreshMcp", "when": "view == builder.mcp", "group": "navigation@4" }
+      ],
+      "view/item/context": [
+        { "command": "builder.diffChange", "when": "view == builder.changes && viewItem == change", "group": "inline@1" },
+        { "command": "builder.keepChange", "when": "view == builder.changes && viewItem == change", "group": "inline@2" },
+        { "command": "builder.undoChange", "when": "view == builder.changes && viewItem == change", "group": "inline@3" },
+        { "command": "builder.openSessionInTerminal", "when": "view == builder.sessions && viewItem == session", "group": "inline@1" },
+        { "command": "builder.deleteSession", "when": "view == builder.sessions && viewItem == session", "group": "inline@2" },
+        { "command": "builder.mcpToggle", "when": "view == builder.mcp && viewItem == mcpServer", "group": "inline@1" },
+        { "command": "builder.mcpRemove", "when": "view == builder.mcp && viewItem == mcpServer", "group": "inline@2" }
+      ],
+      "editor/context": [
+        { "command": "builder.addSelectionToChat", "when": "editorHasSelection", "group": "builder@1" },
+        { "command": "builder.inlineEdit", "when": "editorTextFocus && !editorReadonly", "group": "builder@2" }
+      ],
+      "explorer/context": [
+        { "command": "builder.addFileToChat", "group": "builder@1" }
+      ]
+    },
+    "keybindings": [
+      { "command": "builder.focusChat", "key": "cmd+l", "mac": "cmd+l", "when": "editorTextFocus" },
+      { "command": "builder.addSelectionToChat", "key": "cmd+shift+l", "mac": "cmd+shift+l", "when": "editorHasSelection" },
+      { "command": "builder.inlineEdit", "key": "cmd+k", "mac": "cmd+k", "when": "editorTextFocus && !editorReadonly && config.builder.inlineEdit.useCmdK" },
+      { "command": "builder.inlineEdit", "key": "cmd+alt+k", "mac": "cmd+alt+k", "when": "editorTextFocus && !editorReadonly" },
+      { "command": "builder.newChat", "key": "cmd+shift+n", "mac": "cmd+shift+n", "when": "focusedView == builder.chat" }
+    ],
+    "configuration": {
+      "title": "Builder",
+      "properties": {
+        "builder.codePuppyPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `code-puppy` executable. Leave empty to auto-detect (`~/.code-puppy-venv/bin/code-puppy`, then `PATH`)."
+        },
+        "builder.configDir": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Code Puppy data directory. Leave empty for `~/.code_puppy`."
+        },
+        "builder.useLauncher": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Run agents through Builder's Python launcher so that choosing a model in the editor does **not** overwrite the default model in `puppy.cfg` (your CLI default). Turn off to run plain `code-puppy --acp`."
+        },
+        "builder.persistModelSelection": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "When the launcher is used: also write model selections to `puppy.cfg` (same behavior as `/model` in the CLI)."
+        },
+        "builder.defaultModel": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model id to select for new chats. Empty = remember the last used model, else the Code Puppy default."
+        },
+        "builder.agent": {
+          "type": "string",
+          "default": "code-puppy",
+          "markdownDescription": "The one code-puppy agent Builder talks to. Applies to new agent processes (run **Builder: Restart Agent Processes** after changing it)."
+        },
+        "builder.prewarm": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Keep one idle agent process warm so new chats start instantly (Code Puppy takes 10-30 s to import)."
+        },
+        "builder.maxAgentProcesses": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Maximum number of concurrent agent processes (one per open chat)."
+        },
+        "builder.idleTimeoutMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 0,
+          "description": "Shut down an idle chat's agent process after this many minutes (0 = never). The chat resumes transparently on the next message."
+        },
+        "builder.autoApprove": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Auto-approve agent permission requests (file edits and shell commands) for new chats. **Use with care** - equivalent to yolo mode."
+        },
+        "builder.delegateTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run agent shell commands in visible VS Code terminals (otherwise Code Puppy runs them itself)."
+        },
+        "builder.includeActiveEditorContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Tell the agent which file is open and what is selected with each message."
+        },
+        "builder.inlineEdit.useCmdK": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Bind `Cmd+K` to Inline Edit (this replaces VS Code's `Cmd+K` chord prefix). `Cmd+Alt+K` is always bound."
+        },
+        "builder.inlineEdit.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Model for Inline Edit. Empty = Code Puppy default model."
+        },
+        "builder.tabCompletion.enabled": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Enable Tab autocomplete (inline ghost text). Every pause while typing calls a model - enable deliberately."
+        },
+        "builder.tabCompletion.model": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "A fast/cheap model for Tab autocomplete, e.g. `claude-haiku-5-5` or `gemini-3.1-flash-lite`. Empty = Code Puppy default (slow)."
+        },
+        "builder.tabCompletion.debounceMs": {
+          "type": "number",
+          "default": 450,
+          "minimum": 100,
+          "description": "Pause in typing (ms) before requesting a completion."
+        },
+        "builder.tabCompletion.maxPrefixChars": {
+          "type": "number",
+          "default": 4000,
+          "description": "Characters of context before the cursor sent to the model."
+        },
+        "builder.tabCompletion.maxSuffixChars": {
+          "type": "number",
+          "default": 1500,
+          "description": "Characters of context after the cursor sent to the model."
+        },
+        "builder.log.protocol": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log every ACP JSON-RPC message to the 'Builder' output channel (verbose; useful when experimenting)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:integration": "node test/integration/real-agent.mjs",
+    "package": "npm run build && npx @vscode/vsce package --no-dependencies --allow-missing-repository --skip-license -o builder.vsix",
+    "install:vscode": "code --install-extension builder.vsix --force"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "diff": "^5.2.0"
+  }
+}

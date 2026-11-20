@@ -1,0 +1,96 @@
+diff --git a/build/gulpfile.vscode.ts b/build/gulpfile.vscode.ts
+index 8de1c610..d8e09ceb 100644
+--- a/build/gulpfile.vscode.ts
++++ b/build/gulpfile.vscode.ts
+@@ -606,7 +606,6 @@ BUILD_TARGETS.forEach(buildTarget => {
+ 			compileNativeExtensionsBuildTask,
+ 			util.rimraf(path.join(buildRoot, destinationFolderName)),
+ 			packageTask(platform, arch, sourceFolderName, destinationFolderName, opts),
+-			prepareCopilotRipgrepShimTask(platform, arch, destinationFolderName)
+ 		];
+ 
+ 		if (platform === 'win32') {
+@@ -633,7 +632,6 @@ BUILD_TARGETS.forEach(buildTarget => {
+ 			copyCodiconsTask,
+ 			cleanExtensionsBuildTask,
+ 			compileNonNativeExtensionsBuildTask,
+-			compileCopilotExtensionBuildTask,
+ 			compileExtensionMediaBuildTask,
+ 			writeISODate('out-build'),
+ 			esbuildBundleTask,
+diff --git a/package.json b/package.json
+index 7c963e94..019ee45c 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,7 @@
+   "nativeBuild": {
+     "runtime": "electron",
+     "target": "43.8.9",
+-    "disturl": "https://electronjs.org/headers",
++    "disturl": "https://artifacts.electronjs.org/headers/dist",
+     "msBuildId": "16012121",
+     "buildFromSource": true
+   },
+diff --git a/src/vs/platform/shell/node/shellEnv.ts b/src/vs/platform/shell/node/shellEnv.ts
+index 8f4fbf6c..2d660ebe 100644
+--- a/src/vs/platform/shell/node/shellEnv.ts
++++ b/src/vs/platform/shell/node/shellEnv.ts
+@@ -67,7 +67,7 @@ export async function getResolvedShellEnv(configurationService: IConfigurationSe
+ 			unixShellEnvPromise = Promises.withAsyncBody<NodeJS.ProcessEnv>(async (resolve, reject) => {
+ 				const cts = new CancellationTokenSource();
+ 
+-				let timeoutValue = 10000; // default to 10 seconds
++				let timeoutValue = 30000; // default to 30 seconds
+ 				const configuredTimeoutValue = configurationService.getValue<unknown>('application.shellEnvironmentResolutionTimeout');
+ 				if (typeof configuredTimeoutValue === 'number') {
+ 					timeoutValue = clamp(configuredTimeoutValue, 1, 120) * 1000 /* convert from seconds */;
+diff --git a/src/vs/workbench/browser/layout.ts b/src/vs/workbench/browser/layout.ts
+index 2e7e9e7c..72daffe0 100644
+--- a/src/vs/workbench/browser/layout.ts
++++ b/src/vs/workbench/browser/layout.ts
+@@ -899,7 +899,11 @@ export abstract class Layout extends Disposable implements IWorkbenchLayoutServi
+ 
+ 		// Auxiliary View to restore
+ 		if (this.isVisible(Parts.AUXILIARYBAR_PART)) {
+-			const viewContainerToRestore = this.storageService.get(AuxiliaryBarPart.activeViewSettingsKey, StorageScope.WORKSPACE, this.viewDescriptorService.getDefaultViewContainer(ViewContainerLocation.AuxiliaryBar)?.id);
++			// Builder: with the built-in AI features disabled, the Builder chat is the default secondary side bar view.
++			const defaultAuxiliaryBarContainer = this.configurationService.getValue<boolean>(ChatAIDisabledSettingId)
++				? 'workbench.view.extension.builder'
++				: this.viewDescriptorService.getDefaultViewContainer(ViewContainerLocation.AuxiliaryBar)?.id;
++			const viewContainerToRestore = this.storageService.get(AuxiliaryBarPart.activeViewSettingsKey, StorageScope.WORKSPACE, defaultAuxiliaryBarContainer);
+ 			if (viewContainerToRestore) {
+ 				this.state.initialization.views.containerToRestore.auxiliaryBar = viewContainerToRestore;
+ 			} else {
+diff --git a/src/vs/workbench/contrib/chat/browser/chat.shared.contribution.ts b/src/vs/workbench/contrib/chat/browser/chat.shared.contribution.ts
+index d98796c8..bb527d7c 100644
+--- a/src/vs/workbench/contrib/chat/browser/chat.shared.contribution.ts
++++ b/src/vs/workbench/contrib/chat/browser/chat.shared.contribution.ts
+@@ -2415,13 +2415,13 @@ configurationRegistry.registerConfiguration({
+ 		[ChatAIDisabledSettingId]: {
+ 			type: 'boolean',
+ 			description: nls.localize('chat.disableAIFeatures', "Disable and hide built-in AI features provided by GitHub Copilot, including chat and inline suggestions."),
+-			default: false,
++			default: true,
+ 			scope: ConfigurationScope.WINDOW,
+ 		},
+ 		[ChatConfiguration.CopilotCliCommandEnabled]: {
+ 			type: 'boolean',
+ 			markdownDescription: nls.localize('chat.copilotCliCommand.enabled', "Controls whether integrated terminals include the `copilot` command that ships with VS Code. The command runs GitHub Copilot CLI and offers to install it when it's missing. A GitHub Copilot CLI that you installed yourself isn't affected."),
+-			default: true,
++			default: false,
+ 			scope: ConfigurationScope.APPLICATION,
+ 			policy: {
+ 				name: 'CopilotCliCommand',
+diff --git a/src/vs/workbench/electron-browser/desktop.contribution.ts b/src/vs/workbench/electron-browser/desktop.contribution.ts
+index 0580fa6a..a7a61769 100644
+--- a/src/vs/workbench/electron-browser/desktop.contribution.ts
++++ b/src/vs/workbench/electron-browser/desktop.contribution.ts
+@@ -146,7 +146,7 @@ import product from '../../platform/product/common/product.js';
+ 		'properties': {
+ 			'application.shellEnvironmentResolutionTimeout': {
+ 				'type': 'number',
+-				'default': 10,
++				'default': 30,
+ 				'minimum': 1,
+ 				'maximum': 120,
+ 				'included': !isWindows,

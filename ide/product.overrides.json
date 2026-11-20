@@ -1,0 +1,12 @@
+{
+	"nameShort": "Builder",
+	"nameLong": "Builder",
+	"applicationName": "builder",
+	"dataFolderName": ".builder",
+	"sharedDataFolderName": ".builder-shared",
+	"serverApplicationName": "builder-server",
+	"serverDataFolderName": ".builder-server",
+	"tunnelApplicationName": "builder-tunnel",
+	"darwinBundleIdentifier": "com.walmart.builder",
+	"urlProtocol": "builder"
+}
