@@ -92,6 +92,12 @@ pre.diff span.hunk { color: var(--vscode-descriptionForeground); }
 
 /* banner */
 .banner { display: flex; align-items: center; gap: 6px; padding: 6px 10px; margin: 0 6px; border-radius: 8px 8px 0 0; background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-panel-border, #8884); border-bottom: none; font-size: 12px; }
+.banner.quota { border-color: var(--vscode-editorWarning-foreground, #cca700); }
+.banner.quota button { flex: none; }
+.banner.quota .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner.quota .clock { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--vscode-editorWarning-foreground, #cca700); }
+.banner.quota.ready { border-color: var(--vscode-testing-iconPassed, #73c991); }
+.banner.quota.ready .clock { color: var(--vscode-testing-iconPassed, #73c991); min-width: 0; }
 
 /* composer */
 .composer { flex: none; padding: 4px 10px 6px; position: relative; }

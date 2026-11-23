@@ -28,6 +28,7 @@ no secrets.
 | Tab autocomplete (off by default) | Status bar toggle |
 | Shell commands in visible terminals, approvals, Auto toggle | Chat |
 | MCP servers: enable/disable/add/remove, marketplace browse | Builder tools view on the left |
+| Quota countdown: on "quota exceeded … try again in N minutes", counts down to Ready, then offers Continue | Above the chat composer, status bar |
 
 ## Builder IDE (the fork)
 

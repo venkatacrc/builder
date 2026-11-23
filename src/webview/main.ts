@@ -1,5 +1,6 @@
 import { esc, renderMarkdown } from './markdown';
 import type { AttachmentView, ChatInfo, ChatSnapshot, HostToWebview, Item, WebviewToHost } from '../shared/protocol';
+import { QuotaBlock, formatClock, formatCountdown } from '../shared/quota';
 
 declare function acquireVsCodeApi(): { postMessage(m: WebviewToHost): void; getState(): any; setState(s: any): void };
 const vscode = acquireVsCodeApi();
@@ -17,6 +18,8 @@ let mentionRange: { start: number; end: number } | null = null;
 const history: string[] = [];
 let historyPos = -1;
 let trusted = true;
+let quota: QuotaBlock | null = null;
+let quotaTick: number | undefined;
 
 const svg = (body: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 const ICON = {
@@ -37,6 +40,7 @@ app.innerHTML = `
 </header>
 <div class="messages" id="messages" tabindex="0"></div>
 <div class="composer">
+  <div class="banner quota hidden" id="quota"></div>
   <div class="banner hidden" id="trust"><span>Restricted Mode: Code Puppy starts after you trust this folder.</span><span class="spacer"></span><button class="mini" id="trustBtn">Trust…</button></div>
   <div class="banner hidden" id="banner"></div>
   <div class="card">
@@ -106,6 +110,30 @@ function renderComposerState() {
     bannerEl.innerHTML = `<span><b>${n}</b> file${n === 1 ? '' : 's'} changed by the agent</span><span class="spacer"></span><button class="mini" data-act="review">Review</button><button class="mini" data-act="keep">Keep all</button><button class="mini danger" data-act="undo">Undo all</button>`;
   } else {
     bannerEl.classList.add('hidden');
+  }
+}
+
+function renderQuota() {
+  const el = $('quota');
+  if (!quota) {
+    window.clearInterval(quotaTick);
+    quotaTick = undefined;
+    el.classList.add('hidden');
+    return;
+  }
+  const what = esc(quota.model ?? 'model');
+  const left = quota.until - Date.now();
+  el.classList.remove('hidden');
+  el.title = quota.message;
+  if (left > 0) {
+    el.classList.remove('ready');
+    el.innerHTML = `<span class="clock">${formatCountdown(left)}</span><span class="what"><b>${what}</b> · ready at ${formatClock(quota.until)}</span><button class="mini" data-q="dismiss" title="Hide">✕</button>`;
+    quotaTick ??= window.setInterval(renderQuota, 1000);
+  } else {
+    window.clearInterval(quotaTick);
+    quotaTick = undefined;
+    el.classList.add('ready');
+    el.innerHTML = `<span class="clock">Ready</span><span class="what"><b>${what}</b> quota is back</span><button class="mini" data-q="continue">Continue</button><button class="mini" data-q="dismiss" title="Hide">✕</button>`;
   }
 }
 
@@ -288,6 +316,10 @@ window.addEventListener('message', (ev) => {
       trusted = m.trusted;
       $('trust').classList.toggle('hidden', trusted);
       break;
+    case 'quota':
+      quota = m.quota;
+      renderQuota();
+      break;
   }
 });
 
@@ -445,6 +477,11 @@ autoEl.addEventListener('click', () => active && post({ t: 'setAutoApprove', cha
 $('new').addEventListener('click', () => post({ t: 'newChat' }));
 $('history').addEventListener('click', () => post({ t: 'showSessions' }));
 $('trustBtn').addEventListener('click', () => post({ t: 'manageTrust' }));
+$('quota').addEventListener('click', (e) => {
+  const act = (e.target as HTMLElement).closest('button')?.dataset.q;
+  if (act === 'dismiss') post({ t: 'dismissQuota' });
+  else if (act === 'continue' && active && trusted && !isBusy(cur()?.info)) post({ t: 'send', chatId: active, text: 'continue', attachmentIds: [] });
+});
 
 bannerEl.addEventListener('click', (e) => {
   const act = (e.target as HTMLElement).dataset.act;

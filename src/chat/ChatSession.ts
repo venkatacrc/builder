@@ -17,6 +17,7 @@ import type { ChatInfo, ChatSnapshot, ChatStatus, Item, ModelChoice } from '../s
 import { Logger, uid } from '../util/log';
 import { settings } from '../config';
 import { TranscriptEntry, stripBuilderContext } from '../puppy/files';
+import { QuotaBlock, parseQuotaError } from '../shared/quota';
 
 export interface ChatServices {
   pool: AgentPool;
@@ -31,6 +32,9 @@ export interface ChatServices {
   revealChat(): void;
   /** Agent a stock `code-puppy --acp` process starts with (when the launcher can't pin one). */
   stockDefaultAgent(): string;
+  reportQuota(q: QuotaBlock): void;
+  /** A finished quota countdown is cleared once the user sends again. */
+  noteTurnStarted(): void;
 }
 
 export interface ChatEvents {
@@ -366,6 +370,7 @@ export class ChatSession {
     this.curAssistant = undefined;
     this.curThought = undefined;
     this.turnActive = true;
+    this.svc.noteTurnStarted();
     this.setStatus('running', this.isLive ? 'Thinking…' : 'Starting Code Puppy…');
     try {
       await this.ensureStarted();
@@ -377,6 +382,7 @@ export class ChatSession {
     } catch (e) {
       this.svc.log.error(`[chat ${this.id}] send failed`, e);
       this.addNotice('error', (e as Error).message);
+      this.checkQuota((e as Error).message ?? '');
       this.setStatus('error', 'Error');
     } finally {
       this.turnActive = false;
@@ -505,6 +511,11 @@ export class ChatSession {
     });
   }
 
+  private checkQuota(text: string): void {
+    const q = parseQuotaError(text);
+    if (q) this.svc.reportQuota({ ...q, model: q.model ?? this.agentModel ?? this.model });
+  }
+
   private onUpdate(sessionId: string, u: SessionUpdate): void {
     if (sessionId !== this.sessionId) return;
     if (this.suppress > 0) {
@@ -533,6 +544,7 @@ export class ChatSession {
             this.statusText = 'Responding…';
           }
           this.appendAssistant(text);
+          if (this.turnActive) this.checkQuota(text);
         }
         break;
       }

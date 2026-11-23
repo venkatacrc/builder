@@ -16,6 +16,7 @@ import { ChangeNode, ChangesProvider } from './views/ChangesView';
 import { McpProvider, registerMcpCommands } from './views/McpView';
 import { SessionNode, SessionsProvider, relTime } from './views/SessionsView';
 import { getShellEnv } from './util/shellEnv';
+import { formatClock, formatCountdown } from './shared/quota';
 
 export function activate(ctx: vscode.ExtensionContext): void {
   const log = new Logger();
@@ -72,6 +73,35 @@ export function activate(ctx: vscode.ExtensionContext): void {
   };
   ctx.subscriptions.push(modelItem, pendingItem, mgr.addListener(updateStatus), changes.onDidChangeRecords(updateStatus));
   updateStatus();
+
+  const quotaItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+  quotaItem.command = 'builder.focusChat';
+  let quotaTick: NodeJS.Timeout | undefined;
+  const updateQuota = () => {
+    const q = mgr.currentQuota;
+    if (!q) {
+      clearInterval(quotaTick);
+      quotaTick = undefined;
+      quotaItem.hide();
+      return;
+    }
+    const left = q.until - Date.now();
+    if (left > 0) {
+      quotaItem.text = `$(watch) ${formatCountdown(left)}`;
+      quotaItem.tooltip = `${q.message}\n\nReady at ${formatClock(q.until)}.`;
+      quotaItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+      quotaTick ??= setInterval(updateQuota, 1000);
+    } else {
+      clearInterval(quotaTick);
+      quotaTick = undefined;
+      quotaItem.text = '$(check) Ready';
+      quotaItem.tooltip = `The ${q.model ?? 'model'} quota should be available again. Say "continue" in the chat.`;
+      quotaItem.backgroundColor = undefined;
+    }
+    quotaItem.show();
+  };
+  ctx.subscriptions.push(quotaItem, mgr.onDidChangeQuota(updateQuota), { dispose: () => clearInterval(quotaTick) });
+  updateQuota();
 
   // ------------------------------------------------------------------- commands ---
   const reg = (id: string, fn: (...a: any[]) => any) => ctx.subscriptions.push(vscode.commands.registerCommand(id, fn));

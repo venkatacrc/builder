@@ -31,7 +31,7 @@ const targets = [
   // real-agent integration script can import them without `vscode`.
   {
     ...common,
-    entryPoints: { rpc: 'src/acp/rpc.ts', agent: 'src/acp/agent.ts', shellEnv: 'src/util/shellEnv.ts', puppyFiles: 'src/puppy/files.ts', text: 'src/inline/text.ts' },
+    entryPoints: { rpc: 'src/acp/rpc.ts', agent: 'src/acp/agent.ts', shellEnv: 'src/util/shellEnv.ts', puppyFiles: 'src/puppy/files.ts', text: 'src/inline/text.ts', quota: 'src/shared/quota.ts' },
     outdir: 'dist/lib',
     platform: 'node',
     format: 'cjs',

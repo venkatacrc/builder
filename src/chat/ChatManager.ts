@@ -8,6 +8,7 @@ import { Logger } from '../util/log';
 import { settings } from '../config';
 import { ChatEvents, ChatServices, ChatSession } from './ChatSession';
 import type { HostToWebview, Item } from '../shared/protocol';
+import type { QuotaBlock } from '../shared/quota';
 import { SessionSummary, importCliSession, readTranscript } from '../puppy/files';
 
 interface SessionMeta {
@@ -21,6 +22,9 @@ interface SessionMeta {
 const INDEX_KEY = 'builder.sessionIndex';
 const OPEN_KEY = 'builder.openChats';
 const LAST_MODEL = 'builder.lastModel';
+const QUOTA_KEY = 'builder.quota';
+/** A countdown that finished while Builder was closed still shows "Ready" for this long. */
+const QUOTA_READY_KEEP_MS = 12 * 3600_000;
 
 /** Owns all chats, the shared services, and fan-out of transcript events to webviews. */
 export class ChatManager implements ChatServices, ChatEvents, vscode.Disposable {
@@ -32,6 +36,11 @@ export class ChatManager implements ChatServices, ChatEvents, vscode.Disposable 
   private reveal: () => void = () => {};
   private readonly _onDidChangeSessions = new vscode.EventEmitter<void>();
   readonly onDidChangeSessions = this._onDidChangeSessions.event;
+  private quota?: QuotaBlock;
+  private quotaTimer?: NodeJS.Timeout;
+  private readonly _onDidChangeQuota = new vscode.EventEmitter<QuotaBlock | undefined>();
+  /** Fires when a quota countdown starts, is cleared, or reaches zero. */
+  readonly onDidChangeQuota = this._onDidChangeQuota.event;
 
   constructor(
     private readonly ctx: vscode.ExtensionContext,
@@ -47,6 +56,9 @@ export class ChatManager implements ChatServices, ChatEvents, vscode.Disposable 
     changes.onDidChangeRecords(() => {
       for (const c of this.chats) c.refreshInfo();
     });
+    const saved = ctx.globalState.get<QuotaBlock>(QUOTA_KEY);
+    if (saved && Date.now() - saved.until < QUOTA_READY_KEEP_MS) this.setQuota(saved, false);
+    else if (saved) void ctx.globalState.update(QUOTA_KEY, undefined);
   }
 
   bindView(opts: { isVisible: () => boolean; reveal: () => void }): void {
@@ -81,6 +93,54 @@ export class ChatManager implements ChatServices, ChatEvents, vscode.Disposable 
   stockDefaultAgent(): string {
     const cat = this.ctx.globalState.get<{ defaultAgent: string | null }>('builder.catalog');
     return cat?.defaultAgent || 'code-puppy';
+  }
+
+  reportQuota(q: QuotaBlock): void {
+    this.log.info(`[manager] quota hit (${q.model ?? 'model'}): ready at ${new Date(q.until).toISOString()}`);
+    this.setQuota(q);
+  }
+
+  noteTurnStarted(): void {
+    if (this.quota && this.quota.until <= Date.now()) this.setQuota(undefined);
+  }
+
+  // ---------------------------------------------------------------------- quota ---
+
+  get currentQuota(): QuotaBlock | undefined {
+    return this.quota;
+  }
+
+  dismissQuota(): void {
+    this.setQuota(undefined);
+  }
+
+  private setQuota(q: QuotaBlock | undefined, save = true): void {
+    this.quota = q;
+    clearTimeout(this.quotaTimer);
+    this.quotaTimer = undefined;
+    if (save) void this.ctx.globalState.update(QUOTA_KEY, q);
+    const left = q ? q.until - Date.now() : 0;
+    if (q && left > 0) this.quotaTimer = setTimeout(() => this.onQuotaReady(), Math.min(left, 2 ** 31 - 1));
+    this.broadcast({ t: 'quota', quota: q ?? null });
+    this._onDidChangeQuota.fire(q);
+  }
+
+  private onQuotaReady(): void {
+    const q = this.quota;
+    if (!q) return;
+    this._onDidChangeQuota.fire(q);
+    const what = q.model ? `${q.model} quota` : 'model quota';
+    void vscode.window.showInformationMessage(`Builder is ready: the ${what} should be available again.`, 'Continue').then((pick) => {
+      if (pick) void this.continueAfterQuota();
+    });
+  }
+
+  /** Re-run the interrupted turn with "continue" in the current chat. */
+  async continueAfterQuota(): Promise<void> {
+    this.revealChat();
+    const chat = this.active();
+    if (!chat || chat.isBusy) return;
+    await chat.send('continue', []);
   }
 
   // ----------------------------------------------------------------- ChatEvents ---
@@ -269,6 +329,8 @@ export class ChatManager implements ChatServices, ChatEvents, vscode.Disposable 
 
   dispose(): void {
     if (this.reaper) clearInterval(this.reaper);
+    clearTimeout(this.quotaTimer);
+    this._onDidChangeQuota.dispose();
     for (const c of this.chats) c.dispose();
     void this.pool.dispose();
     this._onDidChangeSessions.dispose();

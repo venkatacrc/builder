@@ -1,5 +1,7 @@
 // Messages exchanged between the extension host and the chat webview.
 
+import type { QuotaBlock } from './quota';
+
 export type ChatStatus = 'starting' | 'idle' | 'running' | 'error' | 'stopped';
 
 export interface ModelChoice {
@@ -74,7 +76,8 @@ export type HostToWebview =
   | { t: 'mentions'; reqId: number; results: AttachmentView[] }
   | { t: 'focusInput' }
   | { t: 'prefill'; text: string }
-  | { t: 'trust'; trusted: boolean };
+  | { t: 'trust'; trusted: boolean }
+  | { t: 'quota'; quota: QuotaBlock | null };
 
 export type WebviewToHost =
   | { t: 'ready' }
@@ -95,4 +98,5 @@ export type WebviewToHost =
   | { t: 'undoAll'; chatId: string }
   | { t: 'showSessions' }
   | { t: 'openInTerminal'; chatId: string }
-  | { t: 'manageTrust' };
+  | { t: 'manageTrust' }
+  | { t: 'dismissQuota' };

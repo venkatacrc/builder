@@ -46,6 +46,7 @@ export class ChatBridge {
       switch (m.t) {
         case 'ready': {
           void webview.postMessage({ t: 'trust', trusted: vscode.workspace.isTrusted } satisfies HostToWebview);
+          void webview.postMessage({ t: 'quota', quota: mgr.currentQuota ?? null } satisfies HostToWebview);
           mgr.pool.prewarm();
           if (mgr.chats.length === 0) mgr.newChat();
           else mgr.select(mgr.activeId ?? mgr.chats[0].id);
@@ -129,6 +130,9 @@ export class ChatBridge {
           return;
         case 'showSessions':
           await vscode.commands.executeCommand('builder.showHistory');
+          return;
+        case 'dismissQuota':
+          mgr.dismissQuota();
           return;
         case 'manageTrust':
           await vscode.commands.executeCommand('workbench.trust.manage');
